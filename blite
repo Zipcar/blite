@@ -73,6 +73,24 @@ print_no_director_error () {
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 }
 
+print_env_info () {
+  echo
+  echo "Your Bosh Director is now active! You may want to set/updatethe following environment variables:"
+  echo "   export BOSH_CREDS_FILE=$CREDS_FILE"
+  echo "   export BOSH_CA_CERT=\$(bosh interpolate \$BOSH_CREDS_FILE --path /director_ssl/ca)"
+  echo "   export BOSH_CLIENT=admin"
+  echo "   export BOSH_CLIENT_SECRET=\$(bosh interpolate \$BOSH_CREDS_FILE --path /admin_password)"
+  echo "   export BOSH_ENVIRONMENT=vbox"
+  echo "If you've already got these exported from a previous creation, don't forget to re-source as certs may have been updated!"
+  echo
+  echo "You probably also want to create a route so you can access your deployments from the host:"
+  echo "   sudo route add -net $BLITE_CIDR gw  $BLITE_DIRECTOR_IP #LINUX w/ route command"
+  echo "   sudo ip route add   $BLITE_CIDR via $BLITE_DIRECTOR_IP # Linux (using iproute2 suite)"
+  echo "   sudo route add -net $BLITE_CIDR     $BLITE_DIRECTOR_IP # Mac OS X"
+  echo "   route add           $BLITE_CIDR     $BLITE_DIRECTOR_IP # Windows"
+  echo
+}
+
 update_bosh_deployment_version () {
   rm -f ${BOSH_DEPLOYMENT_VERSION_FILE}
   echo "Fetching latest version hash for bosh deployment files from github..."
@@ -133,6 +151,8 @@ deploy_director () {
 
   bosh create-env ${blite_manifest} \
     --state ${STATE_FILE}
+
+  print_env_info
 }
 
 destroy_blite_director () {
@@ -244,6 +264,10 @@ case $1 in
       update
       exit 0
     ;;
+    env)
+      print_env_info
+      exit 0
+    ;;
     snapshot)
       echo "snapshot command is not yet implemented"
     ;;
@@ -265,7 +289,7 @@ case $1 in
     ;;
     *)
       echo "blite $VERSION"
-      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge"
+      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge, and env"
     ;;
 esac
 

@@ -21,6 +21,9 @@ Creates a new local Bosh director. Pass in `BLITE_CIDR`, `BLITE_DIRECTOR_IP`, `B
 Blite creates a unique identifier for your  bosh director by hashing together your hostname, and the values of `BLITE_CIDR`, 
 `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP`.
 
+## env
+Outputs environment info you might need to set in order to connect to the director.
+
 ## pause
 Uses VBoxManage to pause the director.
 

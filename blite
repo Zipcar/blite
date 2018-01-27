@@ -1,0 +1,271 @@
+#!/usr/bin/env bash
+##
+# Blite is a CLI tool for using bosh-lite and Bosh2
+# It is meant to fill in the gaps left by moving from a Vagrant solution and make it relatively painless for developers
+# to get a functional Bosh director locally using VirtualBox.
+#
+
+VERSION=v0.1.0
+CONFIG=${HOME}/.config/blite
+MANIFESTS=${CONFIG}/manifests
+STATE_FILES=${CONFIG}/state
+CREDS_FILES=${CONFIG}/creds
+BOSH_DEPLOYMENT_VERSION_FILE=${CONFIG}/bosh_deployment_version_hash.txt
+BOSH_DEPLOYMENT_FILES=${CONFIG}/bosh-deployment-files
+
+mkdir -p ${BOSH_DEPLOYMENT_FILES}
+
+mkdir -p ${CONFIG}
+mkdir -p ${MANIFESTS}
+mkdir -p ${STATE_FILES}
+mkdir -p ${CREDS_FILES}
+
+# Variables the user can override
+: "${BLITE_CIDR:=192.168.50.0/24}"
+: "${BLITE_GATEWAY_IP:=192.168.50.1}"
+: "${BLITE_DIRECTOR_IP:=192.168.50.6}"
+: "${BOSH_DEPLOYMENT_VERSION_HASH:=$(cat ${BOSH_DEPLOYMENT_VERSION_FILE} 2>/dev/null)}"
+
+blite_id=$(echo "$HOSTNAME-$BLITE_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | sha256sum | awk '{print $1}')
+
+DEPLOYMENT_FILES=${BOSH_DEPLOYMENT_FILES}/${BOSH_DEPLOYMENT_VERSION_HASH}
+blite_manifest=${MANIFESTS}/${blite_id}.yml
+STATE_FILE=${STATE_FILES}/${blite_id}-state.json
+CREDS_FILE=${CREDS_FILES}/${blite_id}-creds.yml
+
+if [ ! $(command -v jq) ]; then
+  echo -e "\njq not found! It must be installed before proceeding: https://stedolan.github.io/jq/\n"
+  exit 1
+fi
+
+if [ ! $(command -v curl) ]; then
+  echo -e "\ncurl not found! Ite is a CLI tool for using bosh-lite and Bosh2 must be installed before proceeding: https://curl.haxx.se/\n"
+  exit 1
+fi
+
+if [ ! $(command -v VBoxManage) ]; then
+  echo -e "\nVirtualBox and its CLI VBoxManage not found! They must be installed before proceeding: https://virtualbox.org/\n"
+  exit 1
+fi
+
+print_director_ip () {
+  echo "  DIRECTOR IP: $BLITE_DIRECTOR_IP"
+}
+
+print_blite_configuration () {
+  print_director_ip
+  echo "  GATEWAY: $BLITE_GATEWAY_IP"
+  echo "  CIDR: $BLITE_CIDR"
+}
+
+print_good_luck_error () {
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "Blite thought this director should exist, but it doesn't seem to be in VirtualBox."
+  echo "Good luck with that."
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+}
+
+print_no_director_error () {
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "There doesn't seem to be a bosh-lite director with this configuration:"
+  print_blite_configuration
+  echo "Try running blite create first."
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+}
+
+update_bosh_deployment_version () {
+  rm -f ${BOSH_DEPLOYMENT_VERSION_FILE}
+  echo "Fetching latest version hash for bosh deployment files from github..."
+  BOSH_DEPLOYMENT_VERSION_HASH=$( curl https://api.github.com/repos/cloudfoundry/bosh-deployment/commits/master 2>/dev/null | jq -r '.sha')
+  echo ${BOSH_DEPLOYMENT_VERSION_HASH} > ${BOSH_DEPLOYMENT_VERSION_FILE}
+  DEPLOYMENT_FILES=${BOSH_DEPLOYMENT_FILES}/${BOSH_DEPLOYMENT_VERSION_HASH}
+  echo "Hash: $BOSH_DEPLOYMENT_VERSION_HASH"
+}
+
+fetch_bosh_deployment_files () {
+
+  if [ -z "${BOSH_DEPLOYMENT_VERSION_HASH}" ]; then
+    update_bosh_deployment_version
+  fi
+
+  echo "Fetching bosh-deployment manifest and ops-files from github..."
+  echo "Writing to: $DEPLOYMENT_FILES"
+  mkdir -p ${DEPLOYMENT_FILES}
+  echo "Fetching bosh.yml..."
+  curl -o ${DEPLOYMENT_FILES}/bosh.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/bosh.yml 2>/dev/null
+  echo "  Success"
+  echo "Fetching cpi.yml..."
+  curl -o ${DEPLOYMENT_FILES}/cpi.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/virtualbox/cpi.yml 2>/dev/null
+  echo "  Success"
+  echo "Fetching outbound-network.yml..."
+  curl -o ${DEPLOYMENT_FILES}/outbound-network.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/virtualbox/outbound-network.yml 2>/dev/null
+  echo "  Success"
+  echo "Fetching bosh-lite.yml..."
+  curl -o ${DEPLOYMENT_FILES}/bosh-lite.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/bosh-lite.yml 2>/dev/null
+  echo "  Success"
+  echo "Fetching bosh-lite-runc.yml..."
+  curl -o ${DEPLOYMENT_FILES}/bosh-lite-runc.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/bosh-lite-runc.yml 2>/dev/null
+  echo "  Success"
+  echo "Fetching jumpbox-user.yml..."
+  curl -o ${DEPLOYMENT_FILES}/jumpbox-user.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/jumpbox-user.yml 2>/dev/null
+  echo "  Success"
+}
+
+deploy_director () {
+  bosh interpolate ${DEPLOYMENT_FILES}/bosh.yml \
+    -o ${DEPLOYMENT_FILES}/cpi.yml \
+    -o ${DEPLOYMENT_FILES}/outbound-network.yml \
+    -o ${DEPLOYMENT_FILES}/bosh-lite.yml \
+    -o ${DEPLOYMENT_FILES}/bosh-lite-runc.yml \
+    -o ${DEPLOYMENT_FILES}/jumpbox-user.yml \
+    --vars-store ${CREDS_FILE} \
+    -v director_name="BLite Bosh Director" \
+    -v internal_ip=${BLITE_DIRECTOR_IP} \
+    -v internal_gw=${BLITE_GATEWAY_IP} \
+    -v internal_cidr=${BLITE_CIDR}\
+    -v outbound_network_name=NatNetwork > ${blite_manifest} || exit 1
+
+  if [ ! -e "$blite_manifest" ]; then
+    echo "No manifest found at $blite_manifest..."
+    echo "This corrupt state should never have occurred. Good luck."
+    exit 1
+  fi
+
+  bosh create-env ${blite_manifest} \
+    --state ${STATE_FILE}
+}
+
+destroy_blite_director () {
+  if [ ! -e "$blite_manifest" ] || [ ! -e "$STATE_FILE" ]; then
+    print_no_director_error
+    exit 1
+  fi
+
+  bosh delete-env ${blite_manifest} \
+    --state ${STATE_FILE}
+
+  rm -f ${blite_manifest} ${STATE_FILE} ${CREDS_FILE}
+}
+
+update () {
+  update_bosh_deployment_version
+  fetch_bosh_deployment_files
+}
+
+create () {
+  if [ -z "$(ls -A ${DEPLOYMENT_FILES})" ]; then
+    fetch_bosh_deployment_files
+  fi
+
+  if [ ! -e "$blite_manifest" ]; then
+    echo "Deploying Director..."
+    deploy_director
+  else
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "There's already a bosh-lite director running with this configuration."
+    print_blite_configuration
+    echo "Try running blite destroy first."
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+fi
+
+}
+
+pause () {
+  if [ ! -e ${STATE_FILE} ]; then
+    print_no_director_error
+    exit 1
+  fi
+
+  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
+
+  if [ ! -z "$(VBoxManage list vms -l | grep -e Name: -e State | grep -a1 ${director_machine_id} | grep running)" ]; then
+    echo "Pausing bosh-lite director: ${director_machine_id}"
+    VBoxManage controlvm ${director_machine_id} pause
+  elif [ ! -z "$(VBoxManage list vms | grep ${director_machine_id})" ]; then
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "The bosh-lite director is already paused."
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  else
+    print_good_luck_error
+  fi
+}
+
+resume () {
+  if [ ! -e ${STATE_FILE} ]; then
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "There doesn't seem to be a bosh-lite director with this configuration:"
+    print_blite_configuration
+    echo "Try running blite create first."
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    exit 1
+  fi
+
+  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
+
+
+  if [ ! -z "$(VBoxManage list vms -l | grep -e Name: -e State | grep -a1 ${director_machine_id} | grep paused)" ]; then
+    echo "Resuming bosh-lite director: ${director_machine_id}"
+    VBoxManage controlvm ${director_machine_id} resume
+  elif [ ! -z "$(VBoxManage list runningvms | grep ${director_machine_id})" ]; then
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "The bosh-lite director is already running."
+    print_director_ip
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  else
+    print_good_luck_error
+    echo "director VBox ID: ${director_machine_id}"
+  fi
+
+}
+
+purge () {
+  echo "Completely removing configuration and state cache from $CONFIG"
+  rm -r ${CONFIG}
+}
+
+case $1 in
+    create)
+      create
+      exit 0
+    ;;
+    destroy)
+      destroy_blite_director
+      exit 0
+    ;;
+    pause)
+      pause
+      exit 0
+    ;;
+    resume)
+      resume
+      exit 0
+    ;;
+    update)
+      update
+      exit 0
+    ;;
+    snapshot)
+      echo "snapshot command is not yet implemented"
+    ;;
+    snapshots)
+      echo "snapshots command is not yet implmeneted"
+      exit 0
+    ;;
+    list)
+      echo "list command is not yet implemented"
+      exit 0
+    ;;
+    restore)
+      echo "restore command is not yet implemented"
+      exit 0
+    ;;
+    purge)
+      purge
+      exit 0
+    ;;
+    *)
+      echo "blite $VERSION"
+      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge"
+    ;;
+esac
+

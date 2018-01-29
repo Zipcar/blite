@@ -49,13 +49,13 @@ if [ ! $(command -v VBoxManage) ]; then
 fi
 
 print_director_ip () {
-  echo "  DIRECTOR IP: $BLITE_DIRECTOR_IP"
+  echo "  BLITE_DIRECTOR_IP: $BLITE_DIRECTOR_IP"
 }
 
 print_blite_configuration () {
   print_director_ip
-  echo "  GATEWAY: $BLITE_GATEWAY_IP"
-  echo "  CIDR: $BLITE_CIDR"
+  echo "  BLITE_GATEWAY_IP: $BLITE_GATEWAY_IP"
+  echo "  BLITE_CIDR: $BLITE_CIDR"
 }
 
 print_good_luck_error () {

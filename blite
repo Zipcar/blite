@@ -21,12 +21,13 @@ mkdir -p ${STATE_FILES}
 mkdir -p ${CREDS_FILES}
 
 # Variables the user can override
-: "${BLITE_CIDR:=192.168.50.0/24}"
+: "${BLITE_DIRECTOR_CIDR:=192.168.50.0/24}"
 : "${BLITE_GATEWAY_IP:=192.168.50.1}"
 : "${BLITE_DIRECTOR_IP:=192.168.50.6}"
+: "${BLITE_BOSH_DEPLOYMENTS_CIDR:=10.244.0.0/16}"
 : "${BOSH_DEPLOYMENT_VERSION_HASH:=$(cat ${BOSH_DEPLOYMENT_VERSION_FILE} 2>/dev/null)}"
 
-blite_id=$(echo "$HOSTNAME-$BLITE_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | sha256sum | awk '{print $1}')
+blite_id=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | sha256sum | awk '{print $1}')
 
 DEPLOYMENT_FILES=${BOSH_DEPLOYMENT_FILES}/${BOSH_DEPLOYMENT_VERSION_HASH}
 blite_manifest=${MANIFESTS}/${blite_id}.yml
@@ -55,7 +56,7 @@ print_director_ip () {
 print_blite_configuration () {
   print_director_ip
   echo "  BLITE_GATEWAY_IP: $BLITE_GATEWAY_IP"
-  echo "  BLITE_CIDR: $BLITE_CIDR"
+  echo "  BLITE_DIRECTOR_CIDR: $BLITE_DIRECTOR_CIDR"
 }
 
 print_good_luck_error () {
@@ -73,22 +74,106 @@ print_no_director_error () {
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 }
 
+print_director_env_config () {
+  echo "   export BOSH_CREDS_FILE=$CREDS_FILE;"
+  echo "   export BOSH_CA_CERT=\$(bosh interpolate \$BOSH_CREDS_FILE --path /director_ssl/ca);"
+  echo "   export BOSH_CLIENT=admin;"
+  echo "   export BOSH_CLIENT_SECRET=\$(bosh interpolate \$BOSH_CREDS_FILE --path /admin_password);"
+  echo "   export BOSH_ENVIRONMENT=vbox;"
+}
+
 print_env_info () {
   echo
   echo "Your Bosh Director is now active! You may want to set/updatethe following environment variables:"
-  echo "   export BOSH_CREDS_FILE=$CREDS_FILE"
-  echo "   export BOSH_CA_CERT=\$(bosh interpolate \$BOSH_CREDS_FILE --path /director_ssl/ca)"
-  echo "   export BOSH_CLIENT=admin"
-  echo "   export BOSH_CLIENT_SECRET=\$(bosh interpolate \$BOSH_CREDS_FILE --path /admin_password)"
-  echo "   export BOSH_ENVIRONMENT=vbox"
+  print_director_env_config
   echo "If you've already got these exported from a previous creation, don't forget to re-source as certs may have been updated!"
+  echo "You can automatically setup your environment with the command:"
+  echo "eval $(blite env-eval)"
   echo
-  echo "You probably also want to create a route so you can access your deployments from the host:"
-  echo "   sudo route add -net $BLITE_CIDR gw  $BLITE_DIRECTOR_IP #LINUX w/ route command"
-  echo "   sudo ip route add   $BLITE_CIDR via $BLITE_DIRECTOR_IP # Linux (using iproute2 suite)"
-  echo "   sudo route add -net $BLITE_CIDR     $BLITE_DIRECTOR_IP # Mac OS X"
-  echo "   route add           $BLITE_CIDR     $BLITE_DIRECTOR_IP # Windows"
+  echo "You probably also want to create a route so you can access your deployments from the host."
+  echo "Depending on your cloud config these values may not be right. This script determines the CIDR of the Bosh Deployments"
+  echo "from the \$BLITE_BOSH_DEPLOYMENTS_CIDR environment variable. Which is currently set to $BLITE_BOSH_DEPLOYMENTS_CIDR"
+  echo "The command to allow you to access VMS within that CIDR through the Bosh director is:"
+  echo "   sudo route add -net $BLITE_BOSH_DEPLOYMENTS_CIDR gw  $BLITE_DIRECTOR_IP #LINUX w/ route command"
+  echo "   sudo ip route add   $BLITE_BOSH_DEPLOYMENTS_CIDR via $BLITE_DIRECTOR_IP # Linux (using iproute2 suite)"
+  echo "   sudo route add -net $BLITE_BOSH_DEPLOYMENTS_CIDR     $BLITE_DIRECTOR_IP # Mac OS X"
+  echo "   route add           $BLITE_BOSH_DEPLOYMENTS_CIDR     $BLITE_DIRECTOR_IP # Windows"
   echo
+  echo "You can automatically set the routes up if the above configuration looks right using blite route-add"
+}
+
+print_route_error() {
+  echo "Unable to detect route command to use, you'll have to set up routing manually."
+  echo "The output of blite config might be helpful. Sorry /shrug"
+}
+
+route_add() {
+  echo "Adding routes typically requires elevated permissions. You may be prompted for your root password."
+  echo "If you'd rather not enter it, run blite config to see the routing commands you can run manually..."
+  case $OSTYPE in
+    linux-gnu)
+      echo "Linux detected"
+      if [ $(command -v route) ]; then
+         echo "route command available: route"
+         echo "Running: sudo route add -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} gw ${BLITE_DIRECTOR_IP}"
+        sudo route add -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} gw  ${BLITE_DIRECTOR_IP} && echo "route added"
+      elif [ $(command -v ip) ]; then
+        echo "route command available: ip"
+        echo "Running: sudo ip route add   ${BLITE_BOSH_DEPLOYMENTS_CIDR} via ${BLITE_DIRECTOR_IP}"
+        sudo ip route add   ${BLITE_BOSH_DEPLOYMENTS_CIDR} via ${BLITE_DIRECTOR_IP} && echo "route added"
+      else
+        print_route_error
+      fi
+    ;;
+    darwin*)
+      echo "OS X detected"
+      echo "Running: sudo route add -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP}"
+      sudo route add -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP} && echo "route added"
+    ;;
+    cygwin|mysys)
+      echo "Windows detected"
+      echo "Running: route add ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP}"
+      route add ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP} && echo "route added"
+    ;;
+    *)
+      echo "Could not detect your OS effectively from \$OSTYPE: $OSTYPE"
+      print_route_error
+    ;;
+  esac
+}
+
+route_rm() {
+  echo "Removing routes requires elevated permissions. You will be prompted for your root password."
+  case $OSTYPE in
+    linux-gnu)
+      echo "Linux detected"
+      if [ $(command -v route) ]; then
+         echo "route command available: route"
+         echo "Running: sudo route delete -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} gw ${BLITE_DIRECTOR_IP}"
+        sudo route delete -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} gw ${BLITE_DIRECTOR_IP} && echo "route removed"
+      elif [ $(command -v ip) ]; then
+        echo "route command available: ip"
+        echo "Running: sudo ip route delete   ${BLITE_BOSH_DEPLOYMENTS_CIDR} via ${BLITE_DIRECTOR_IP}"
+        sudo ip route delete   ${BLITE_BOSH_DEPLOYMENTS_CIDR} via ${BLITE_DIRECTOR_IP} && echo "route removed"
+      else
+        print_route_error
+      fi
+    ;;
+    darwin*)
+      echo "OS X detected"
+      echo "Running: sudo route delete -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP}"
+      sudo route delete -net ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP} && echo "route removed"
+    ;;
+    cygwin|mysys)
+      echo "Windows detected"
+      echo "Running: route delete ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP}"
+      route delete ${BLITE_BOSH_DEPLOYMENTS_CIDR} ${BLITE_DIRECTOR_IP} && echo "route removed"
+    ;;
+    *)
+      echo "Could not detect your OS effectively from \$OSTYPE: $OSTYPE"
+      print_route_error
+    ;;
+  esac
 }
 
 update_bosh_deployment_version () {
@@ -140,7 +225,7 @@ deploy_director () {
     -v director_name="BLite Bosh Director" \
     -v internal_ip=${BLITE_DIRECTOR_IP} \
     -v internal_gw=${BLITE_GATEWAY_IP} \
-    -v internal_cidr=${BLITE_CIDR}\
+    -v internal_cidr=${BLITE_DIRECTOR_CIDR}\
     -v outbound_network_name=NatNetwork > ${blite_manifest} || exit 1
 
   if [ ! -e "$blite_manifest" ]; then
@@ -264,8 +349,20 @@ case $1 in
       update
       exit 0
     ;;
-    env)
+    config)
       print_env_info
+      exit 0
+    ;;
+    env-eval)
+      print_director_env_config
+      exit 0
+    ;;
+    route-add)
+      route_add
+      exit 0
+    ;;
+    route-rm)
+      route_rm
       exit 0
     ;;
     snapshot)
@@ -289,7 +386,8 @@ case $1 in
     ;;
     *)
       echo "blite $VERSION"
-      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge, and env"
+      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge, route-add, route-delete, env-eval and config"
+      export BOOGALOO=woohoo
     ;;
 esac
 

@@ -7,7 +7,7 @@ It is still a work in progress.
 
 ```
 blite v0.1.0
-Supported commands are: create, destroy, pause, resume, update, purge
+Supported commands are: create, destroy, pause, resume, update, purge, route-add, route-delete, env-eval and config
 ```
 
 ## Dependencies
@@ -17,12 +17,30 @@ Supported commands are: create, destroy, pause, resume, update, purge
   - [curl](https://curl.haxx.se/)
 
 ## create
-Creates a new local Bosh director. Pass in `BLITE_CIDR`, `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP` to set a custom network configuration.
-Blite creates a unique identifier for your  bosh director by hashing together your hostname, and the values of `BLITE_CIDR`, 
+Creates a new local Bosh director. Pass in `BLITE_DIRECTOR_CIDR`, `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP` to set a custom network configuration.
+Blite creates a unique identifier for your  bosh director by hashing together your hostname, and the values of `BLITE_DIRECTOR_CIDR`, 
 `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP`.
 
-## env
-Outputs environment info you might need to set in order to connect to the director.
+## config
+Outputs environment and routing configuration info you might need to set in order to connect to the director and the things it deploys.
+
+## env-eval
+This command is a helper for sourcing the environment variables bosh2 needs to work. It is meant to be run wrapped in an eval like this:
+
+```bash
+eval $(blite env-eval)
+
+```
+
+## route-add
+A helper command that will attempt to detect your OS and update your routing table so it's possible to connect to the things your director deploys.
+This function working properly for you is heavily dependent on the cloud config you pass to the director. Make sure the $BLITE_BOSH_DEPLOYMENTS_CIDR 
+environment variable is set to the actual CIDR of your director's internal network where things are being deployed.
+
+## route-rm
+A helper command that will attempt to detect your OS and cleanup your routing table removing the route that would allow you to connect to the things your director deploys.
+This function working properly for you is heavily dependent on the cloud config you pass to the director. Make sure the $BLITE_BOSH_DEPLOYMENTS_CIDR 
+environment variable is set to the actual CIDR of your director's internal network where things are being deployed.
 
 ## pause
 Uses VBoxManage to pause the director.

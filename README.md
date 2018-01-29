@@ -34,12 +34,12 @@ eval $(blite env-eval)
 
 ## route-add
 A helper command that will attempt to detect your OS and update your routing table so it's possible to connect to the things your director deploys.
-This function working properly for you is heavily dependent on the cloud config you pass to the director. Make sure the $BLITE_BOSH_DEPLOYMENTS_CIDR 
+This function working properly for you is heavily dependent on the cloud config you pass to the director. Make sure the `BLITE_BOSH_DEPLOYMENTS_CIDR`
 environment variable is set to the actual CIDR of your director's internal network where things are being deployed.
 
 ## route-rm
 A helper command that will attempt to detect your OS and cleanup your routing table removing the route that would allow you to connect to the things your director deploys.
-This function working properly for you is heavily dependent on the cloud config you pass to the director. Make sure the $BLITE_BOSH_DEPLOYMENTS_CIDR 
+This function working properly for you is heavily dependent on the cloud config you pass to the director. Make sure the `BLITE_BOSH_DEPLOYMENTS_CIDR`
 environment variable is set to the actual CIDR of your director's internal network where things are being deployed.
 
 ## pause

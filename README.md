@@ -16,6 +16,13 @@ Supported commands are: create, destroy, pause, resume, update, purge, route-add
   - [jq](https://stedolan.github.io/jq/)
   - [curl](https://curl.haxx.se/)
 
+## Quick Start
+ 1. Clone this repo or download the raw blite file.
+ 1. Add blite to your PATH (optional)
+ 1. Run `blite create` to get the director started
+ 1. Run `eval (blite env-eval)` to configure your shell to talk to the newly created bosh director.
+ 1. Run `blite route-add` to make sure you have a route to communicate with the director and they things it deploys.
+ 
 ## create
 Creates a new local Bosh director. Pass in `BLITE_DIRECTOR_CIDR`, `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP` to set a custom network configuration.
 Blite creates a unique identifier for your  bosh director by hashing together your hostname, and the values of `BLITE_DIRECTOR_CIDR`, 

@@ -26,6 +26,7 @@ mkdir -p ${CREDS_FILES}
 : "${BLITE_DIRECTOR_IP:=192.168.50.6}"
 : "${BLITE_BOSH_DEPLOYMENTS_CIDR:=10.244.0.0/16}"
 : "${BOSH_DEPLOYMENT_VERSION_HASH:=$(cat ${BOSH_DEPLOYMENT_VERSION_FILE} 2>/dev/null)}"
+: "${BLITE_BOSH_EXECUTABLE:=bosh}"
 
 blite_id=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | shasum | awk '{print $1}')
 
@@ -40,7 +41,7 @@ if [ ! $(command -v jq) ]; then
 fi
 
 if [ ! $(command -v curl) ]; then
-  echo -e "\ncurl not found! Ite is a CLI tool for using bosh-lite and Bosh2 must be installed before proceeding: https://curl.haxx.se/\n"
+  echo -e "\ncurl not found! It must be installed before proceeding: https://curl.haxx.se/\n"
   exit 1
 fi
 
@@ -49,10 +50,10 @@ if [ ! $(command -v VBoxManage) ]; then
   exit 1
 fi
 
-if [ ! $(command -v bosh) ]; then
+if [ ! $(command -v ${BLITE_BOSH_EXECUTABLE}) ]; then
   echo -e "\nBosh2 CLI not found! It must be installed before proceeding: https://bosh.io/docs/cli-v2.html#install"
   exit 1
-elif [ -z "$(bosh -v | grep 'version 2.')" ]; then
+elif [ -z "$(${BLITE_BOSH_EXECUTABLE} -v | grep 'version 2.')" ]; then
   echo -e "\nBosh seems to be installed, but is not the correct version. Version 2 is required https://bosh.io/docs/cli-v2.html#install"
   exit 1
 fi
@@ -84,9 +85,9 @@ print_no_director_error () {
 
 print_director_env_config () {
   echo "   export BOSH_CREDS_FILE=$CREDS_FILE;"
-  echo "   export BOSH_CA_CERT=\$(bosh interpolate \$BOSH_CREDS_FILE --path /director_ssl/ca);"
+  echo "   export BOSH_CA_CERT=\$($BLITE_BOSH_EXECUTABLE interpolate \$BOSH_CREDS_FILE --path /director_ssl/ca);"
   echo "   export BOSH_CLIENT=admin;"
-  echo "   export BOSH_CLIENT_SECRET=\$(bosh interpolate \$BOSH_CREDS_FILE --path /admin_password);"
+  echo "   export BOSH_CLIENT_SECRET=\$($BLITE_BOSH_EXECUTABLE interpolate \$BOSH_CREDS_FILE --path /admin_password);"
   echo "   export BOSH_ENVIRONMENT=vbox;"
 }
 
@@ -225,7 +226,7 @@ fetch_bosh_deployment_files () {
 }
 
 deploy_director () {
-  bosh interpolate ${DEPLOYMENT_FILES}/bosh.yml \
+  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml \
     -o ${DEPLOYMENT_FILES}/cpi.yml \
     -o ${DEPLOYMENT_FILES}/outbound-network.yml \
     -o ${DEPLOYMENT_FILES}/bosh-lite.yml \
@@ -244,7 +245,7 @@ deploy_director () {
     exit 1
   fi
 
-  bosh create-env ${blite_manifest} \
+  ${BLITE_BOSH_EXECUTABLE} create-env ${blite_manifest} \
     --state ${STATE_FILE}
 
   print_env_info
@@ -256,7 +257,7 @@ destroy_blite_director () {
     exit 1
   fi
 
-  bosh delete-env ${blite_manifest} \
+  ${BLITE_BOSH_EXECUTABLE} delete-env ${blite_manifest} \
     --state ${STATE_FILE}
 
   rm -f ${blite_manifest} ${STATE_FILE} ${CREDS_FILE}

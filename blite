@@ -27,6 +27,7 @@ mkdir -p ${CREDS_FILES}
 : "${BLITE_BOSH_DEPLOYMENTS_CIDR:=10.244.0.0/16}"
 : "${BOSH_DEPLOYMENT_VERSION_HASH:=$(cat ${BOSH_DEPLOYMENT_VERSION_FILE} 2>/dev/null)}"
 : "${BLITE_BOSH_EXECUTABLE:=bosh}"
+: "${BLITE_BOSH_ENVIRONMENT:=vbox}"
 
 blite_id=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | shasum | awk '{print $1}')
 
@@ -88,7 +89,7 @@ print_director_env_config () {
   echo "   export BOSH_CA_CERT=\$($BLITE_BOSH_EXECUTABLE interpolate \$BOSH_CREDS_FILE --path /director_ssl/ca);"
   echo "   export BOSH_CLIENT=admin;"
   echo "   export BOSH_CLIENT_SECRET=\$($BLITE_BOSH_EXECUTABLE interpolate \$BOSH_CREDS_FILE --path /admin_password);"
-  echo "   export BOSH_ENVIRONMENT=vbox;"
+  echo "   export BOSH_ENVIRONMENT=$BLITE_BOSH_ENVIRONMENT;"
 }
 
 print_env_info () {
@@ -247,6 +248,8 @@ deploy_director () {
 
   ${BLITE_BOSH_EXECUTABLE} create-env ${blite_manifest} \
     --state ${STATE_FILE}
+
+  ${BLITE_BOSH_EXECUTABLE} alias-env ${BLITE_BOSH_ENVIRONMENT} -e ${BLITE_DIRECTOR_IP}
 
   print_env_info
 }

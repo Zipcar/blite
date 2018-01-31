@@ -400,7 +400,7 @@ case $1 in
     ;;
     *)
       echo "blite $VERSION"
-      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge, route-add, route-delete, env-eval and config"
+      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge, route-add, route-rm, env-eval and config"
       export BOOGALOO=woohoo
     ;;
 esac

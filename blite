@@ -320,11 +320,19 @@ resume () {
   fi
 
   director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
+  director_state=$(VBoxManage list vms -l | grep -e Name -e State | grep -a1 ${director_machine_id})
+  echo ${director_state}
 
-
-  if [ ! -z "$(VBoxManage list vms -l | grep -e Name: -e State | grep -a1 ${director_machine_id} | grep paused)" ]; then
+  if [ ! -z "$(echo ${director_state} | grep paused)" ]; then
     echo "Resuming bosh-lite director: ${director_machine_id}"
     VBoxManage controlvm ${director_machine_id} resume
+  elif [ ! -z "$(echo ${director_state} | grep 'powered off')" ]; then
+    echo "Director was powered off, attempting to startup and resume"
+    VBoxManage startvm ${director_machine_id} --type headless
+    echo "Removing manifest sha from state file to force a redeploy..."
+    jq '. | del(.current_manifest_sha)' ${STATE_FILE} > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp ${STATE_FILE}
+    ${BLITE_BOSH_EXECUTABLE} create-env ${blite_manifest} --state ${STATE_FILE}
+    echo "Because your director was powered off and not paused you might need to run bosh cck"
   elif [ ! -z "$(VBoxManage list runningvms | grep ${director_machine_id})" ]; then
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo "The bosh-lite director is already running."

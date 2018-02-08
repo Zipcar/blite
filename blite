@@ -350,6 +350,12 @@ purge () {
   rm -r ${CONFIG}
 }
 
+status () {
+  echo "Bosh Director Status:"
+  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
+  VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${director_machine_id}
+}
+
 case $1 in
     create)
       create
@@ -369,6 +375,10 @@ case $1 in
     ;;
     update)
       update
+      exit 0
+    ;;
+    status)
+      status
       exit 0
     ;;
     config)
@@ -391,7 +401,7 @@ case $1 in
       echo "snapshot command is not yet implemented"
     ;;
     snapshots)
-      echo "snapshots command is not yet implmeneted"
+      echo "snapshots command is not yet implemented"
       exit 0
     ;;
     list)

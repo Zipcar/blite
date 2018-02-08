@@ -36,7 +36,9 @@ blite_manifest=${MANIFESTS}/${blite_id}.yml
 STATE_FILE=${STATE_FILES}/${blite_id}-state.json
 CREDS_FILE=${CREDS_FILES}/${blite_id}-creds.yml
 
-director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILE})
+if [ -e "${STATE_FILE}" ]; then
+  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILE})
+fi
 
 if [ ! $(command -v jq) ]; then
   echo -e "\njq not found! It must be installed before proceeding: https://stedolan.github.io/jq/\n"
@@ -262,8 +264,7 @@ destroy_blite_director () {
     exit 1
   fi
 
-  ${BLITE_BOSH_EXECUTABLE} delete-env ${blite_manifest} \
-    --state ${STATE_FILE}
+  ${BLITE_BOSH_EXECUTABLE} delete-env ${blite_manifest} --state ${STATE_FILE}
 
   rm -f ${blite_manifest} ${STATE_FILE} ${CREDS_FILE}
 }
@@ -364,6 +365,16 @@ snapshots() {
  VBoxManage snapshot ${director_machine_id} list
 }
 
+restore() {
+  if [ -z "$1" ]; then
+    echo "Must pass a snapshot name or UUID to restore. Use blite snapshots to list all available."
+    exit 1
+  fi
+  VBoxManage controlvm ${director_machine_id} poweroff
+  VBoxManage snapshot ${director_machine_id} restore $1
+  VBoxManage startvm ${director_machine_id} --type headless
+}
+
 case $1 in
     create)
       create
@@ -412,12 +423,8 @@ case $1 in
       snapshots
       exit 0
     ;;
-    list)
-      echo "list command is not yet implemented"
-      exit 0
-    ;;
     restore)
-      echo "restore command is not yet implemented"
+      restore $2
       exit 0
     ;;
     purge)
@@ -426,7 +433,7 @@ case $1 in
     ;;
     *)
       echo "blite $VERSION"
-      echo "Supported commands are: create, destroy, pause, resume, update, list, snapshot, snapshots, restore, purge, route-add, route-rm, env-eval and config"
+      echo "Supported commands are: create, destroy, pause, resume, update, snapshot, snapshots, restore, purge, route-add, route-rm, env-eval and config"
       export BOOGALOO=woohoo
     ;;
 esac

@@ -36,6 +36,8 @@ blite_manifest=${MANIFESTS}/${blite_id}.yml
 STATE_FILE=${STATE_FILES}/${blite_id}-state.json
 CREDS_FILE=${CREDS_FILES}/${blite_id}-creds.yml
 
+director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILE})
+
 if [ ! $(command -v jq) ]; then
   echo -e "\njq not found! It must be installed before proceeding: https://stedolan.github.io/jq/\n"
   exit 1
@@ -295,8 +297,6 @@ pause () {
     exit 1
   fi
 
-  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
-
   if [ ! -z "$(VBoxManage list vms -l | grep -e Name: -e State | grep -a1 ${director_machine_id} | grep running)" ]; then
     echo "Pausing bosh-lite director: ${director_machine_id}"
     VBoxManage controlvm ${director_machine_id} pause
@@ -319,7 +319,6 @@ resume () {
     exit 1
   fi
 
-  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
   director_state=$(VBoxManage list vms -l | grep -e Name -e State | grep -a1 ${director_machine_id})
   echo ${director_state}
 
@@ -352,8 +351,17 @@ purge () {
 
 status () {
   echo "Bosh Director Status:"
-  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILES}/${blite_id}-state.json)
   VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${director_machine_id}
+}
+
+snapshot() {
+  timestamp=$(date +%Y-%m-%d-%H-%M-%S)
+  snapshot_name=${1:-$timestamp}
+  VBoxManage snapshot ${director_machine_id} take ${snapshot_name} --live
+}
+
+snapshots() {
+ VBoxManage snapshot ${director_machine_id} list
 }
 
 case $1 in
@@ -398,10 +406,10 @@ case $1 in
       exit 0
     ;;
     snapshot)
-      echo "snapshot command is not yet implemented"
+      snapshot $2
     ;;
     snapshots)
-      echo "snapshots command is not yet implemented"
+      snapshots
       exit 0
     ;;
     list)

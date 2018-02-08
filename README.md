@@ -55,6 +55,17 @@ Uses VBoxManage to pause the director.
 ## resume
 Uses VBoxManage to resume the director
 
+## snapshot
+Snapshots the state of a running Bosh director. Can be passed a snapshot name, if none is provided a timestamp will be used.
+For example: `blite snapshot base`
+
+## snapshots
+Lists the available snapshots for the Bosh director.
+
+## restore
+Restores the specified snapshot. Must be passed a snapshot name.
+For example: `blite restore base`
+
 ## destroy
 Deletes the bosh director and purges any cached state and credential data for that specific director.
 

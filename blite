@@ -6,6 +6,7 @@
 #
 
 VERSION=v0.1.0
+
 CONFIG=${HOME}/.config/blite
 MANIFESTS=${CONFIG}/manifests
 STATE_FILES=${CONFIG}/state
@@ -13,9 +14,9 @@ CREDS_FILES=${CONFIG}/creds
 BOSH_DEPLOYMENT_VERSION_FILE=${CONFIG}/bosh_deployment_version_hash.txt
 BOSH_DEPLOYMENT_FILES=${CONFIG}/bosh-deployment-files
 
-mkdir -p ${BOSH_DEPLOYMENT_FILES}
-
+# Ensure all of the configuration directories exist
 mkdir -p ${CONFIG}
+mkdir -p ${BOSH_DEPLOYMENT_FILES}
 mkdir -p ${MANIFESTS}
 mkdir -p ${STATE_FILES}
 mkdir -p ${CREDS_FILES}
@@ -29,15 +30,15 @@ mkdir -p ${CREDS_FILES}
 : "${BLITE_BOSH_EXECUTABLE:=bosh}"
 : "${BLITE_BOSH_ENVIRONMENT:=vbox}"
 
-blite_id=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | shasum | awk '{print $1}')
-
+# Identify this Bosh director with a unique id and find all relevant files
+BLITE_ID=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | shasum | awk '{print $1}')
 DEPLOYMENT_FILES=${BOSH_DEPLOYMENT_FILES}/${BOSH_DEPLOYMENT_VERSION_HASH}
-blite_manifest=${MANIFESTS}/${blite_id}.yml
-STATE_FILE=${STATE_FILES}/${blite_id}-state.json
-CREDS_FILE=${CREDS_FILES}/${blite_id}-creds.yml
+BLITE_MANIFEST=${MANIFESTS}/${BLITE_ID}.yml
+STATE_FILE=${STATE_FILES}/${BLITE_ID}-state.json
+CREDS_FILE=${CREDS_FILES}/${BLITE_ID}-creds.yml
 
 if [ -e "${STATE_FILE}" ]; then
-  director_machine_id=$(jq -r '.current_vm_cid' ${STATE_FILE})
+  DIRECTOR_MACHINE_ID=$(jq -r '.current_vm_cid' ${STATE_FILE})
 fi
 
 if [ ! $(command -v jq) ]; then
@@ -71,11 +72,12 @@ print_blite_configuration () {
   print_director_ip
   echo "  BLITE_GATEWAY_IP: $BLITE_GATEWAY_IP"
   echo "  BLITE_DIRECTOR_CIDR: $BLITE_DIRECTOR_CIDR"
+  echo "  BLITE_BOSH_DEPLOYMENTS_CIDR: $BLITE_BOSH_DEPLOYMENTS_CIDR"
 }
 
 print_good_luck_error () {
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  echo "Blite thought this director should exist, but it doesn't seem to be in VirtualBox."
+  echo "blite thought this director should exist, but it doesn't seem to be in VirtualBox."
   echo "Good luck with that."
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 }
@@ -242,15 +244,15 @@ deploy_director () {
     -v internal_ip=${BLITE_DIRECTOR_IP} \
     -v internal_gw=${BLITE_GATEWAY_IP} \
     -v internal_cidr=${BLITE_DIRECTOR_CIDR}\
-    -v outbound_network_name=NatNetwork > ${blite_manifest} || exit 1
+    -v outbound_network_name=NatNetwork > ${BLITE_MANIFEST} || exit 1
 
-  if [ ! -e "$blite_manifest" ]; then
-    echo "No manifest found at $blite_manifest..."
+  if [ ! -e "$BLITE_MANIFEST" ]; then
+    echo "No manifest found at $BLITE_MANIFEST..."
     echo "This corrupt state should never have occurred. Good luck."
     exit 1
   fi
 
-  ${BLITE_BOSH_EXECUTABLE} create-env ${blite_manifest} \
+  ${BLITE_BOSH_EXECUTABLE} create-env ${BLITE_MANIFEST} \
     --state ${STATE_FILE}
 
   ${BLITE_BOSH_EXECUTABLE} alias-env ${BLITE_BOSH_ENVIRONMENT} -e ${BLITE_DIRECTOR_IP} --ca-cert <(${BLITE_BOSH_EXECUTABLE} interpolate ${CREDS_FILE} --path /director_ssl/ca)
@@ -259,14 +261,14 @@ deploy_director () {
 }
 
 destroy_blite_director () {
-  if [ ! -e "$blite_manifest" ] || [ ! -e "$STATE_FILE" ]; then
+  if [ ! -e "$BLITE_MANIFEST" ] || [ ! -e "$STATE_FILE" ]; then
     print_no_director_error
     exit 1
   fi
 
-  ${BLITE_BOSH_EXECUTABLE} delete-env ${blite_manifest} --state ${STATE_FILE}
+  ${BLITE_BOSH_EXECUTABLE} delete-env ${BLITE_MANIFEST} --state ${STATE_FILE}
 
-  rm -f ${blite_manifest} ${STATE_FILE} ${CREDS_FILE}
+  rm -f ${BLITE_MANIFEST} ${STATE_FILE} ${CREDS_FILE}
 }
 
 update () {
@@ -279,7 +281,7 @@ create () {
     fetch_bosh_deployment_files
   fi
 
-  if [ ! -e "$blite_manifest" ]; then
+  if [ ! -e "$BLITE_MANIFEST" ]; then
     echo "Deploying Director..."
     deploy_director
   else
@@ -298,10 +300,10 @@ pause () {
     exit 1
   fi
 
-  if [ ! -z "$(VBoxManage list vms -l | grep -e Name: -e State | grep -a1 ${director_machine_id} | grep running)" ]; then
-    echo "Pausing bosh-lite director: ${director_machine_id}"
-    VBoxManage controlvm ${director_machine_id} pause
-  elif [ ! -z "$(VBoxManage list vms | grep ${director_machine_id})" ]; then
+  if [ ! -z "$(VBoxManage list vms -l | grep -e Name: -e State | grep -a1 ${DIRECTOR_MACHINE_ID} | grep running)" ]; then
+    echo "Pausing bosh-lite director: ${DIRECTOR_MACHINE_ID}"
+    VBoxManage controlvm ${DIRECTOR_MACHINE_ID} pause
+  elif [ ! -z "$(VBoxManage list vms | grep ${DIRECTOR_MACHINE_ID})" ]; then
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo "The bosh-lite director is already paused."
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -320,27 +322,27 @@ resume () {
     exit 1
   fi
 
-  director_state=$(VBoxManage list vms -l | grep -e Name -e State | grep -a1 ${director_machine_id})
+  director_state=$(VBoxManage list vms -l | grep -e Name -e State | grep -a1 ${DIRECTOR_MACHINE_ID})
   echo ${director_state}
 
   if [ ! -z "$(echo ${director_state} | grep paused)" ]; then
-    echo "Resuming bosh-lite director: ${director_machine_id}"
-    VBoxManage controlvm ${director_machine_id} resume
+    echo "Resuming bosh-lite director: ${DIRECTOR_MACHINE_ID}"
+    VBoxManage controlvm ${DIRECTOR_MACHINE_ID} resume
   elif [ ! -z "$(echo ${director_state} | grep 'powered off')" ]; then
     echo "Director was powered off, attempting to startup and resume"
-    VBoxManage startvm ${director_machine_id} --type headless
+    VBoxManage startvm ${DIRECTOR_MACHINE_ID} --type headless
     echo "Removing manifest sha from state file to force a redeploy..."
     jq '. | del(.current_manifest_sha)' ${STATE_FILE} > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp ${STATE_FILE}
-    ${BLITE_BOSH_EXECUTABLE} create-env ${blite_manifest} --state ${STATE_FILE}
+    ${BLITE_BOSH_EXECUTABLE} create-env ${BLITE_MANIFEST} --state ${STATE_FILE}
     echo "Because your director was powered off and not paused you might need to run bosh cck"
-  elif [ ! -z "$(VBoxManage list runningvms | grep ${director_machine_id})" ]; then
+  elif [ ! -z "$(VBoxManage list runningvms | grep ${DIRECTOR_MACHINE_ID})" ]; then
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo "The bosh-lite director is already running."
     print_director_ip
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   else
     print_good_luck_error
-    echo "director VBox ID: ${director_machine_id}"
+    echo "director VBox ID: ${DIRECTOR_MACHINE_ID}"
   fi
 
 }
@@ -352,17 +354,17 @@ purge () {
 
 status () {
   echo "Bosh Director Status:"
-  VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${director_machine_id}
+  VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${DIRECTOR_MACHINE_ID}
 }
 
 snapshot() {
   timestamp=$(date +%Y-%m-%d-%H-%M-%S)
   snapshot_name=${1:-$timestamp}
-  VBoxManage snapshot ${director_machine_id} take ${snapshot_name} --live
+  VBoxManage snapshot ${DIRECTOR_MACHINE_ID} take ${snapshot_name} --live
 }
 
 snapshots() {
- VBoxManage snapshot ${director_machine_id} list
+ VBoxManage snapshot ${DIRECTOR_MACHINE_ID} list
 }
 
 restore() {
@@ -370,9 +372,9 @@ restore() {
     echo "Must pass a snapshot name or UUID to restore. Use blite snapshots to list all available."
     exit 1
   fi
-  VBoxManage controlvm ${director_machine_id} poweroff
-  VBoxManage snapshot ${director_machine_id} restore $1
-  VBoxManage startvm ${director_machine_id} --type headless
+  VBoxManage controlvm ${DIRECTOR_MACHINE_ID} poweroff
+  VBoxManage snapshot ${DIRECTOR_MACHINE_ID} restore $1
+  VBoxManage startvm ${DIRECTOR_MACHINE_ID} --type headless
 }
 
 case $1 in
@@ -433,8 +435,75 @@ case $1 in
     ;;
     *)
       echo "blite $VERSION"
-      echo "Supported commands are: create, destroy, pause, resume, update, snapshot, snapshots, restore, purge, route-add, route-rm, env-eval and config"
-      export BOOGALOO=woohoo
+      echo "A script to help manage a bosh-lite deployment."
+      echo
+      echo "Available Environment Variables:"
+      echo "  BLITE_DIRECTOR_CIDR: The CIDR of the director's subnet ($BLITE_DIRECTOR_CIDR)"
+      echo "  BLITE_BOSH_DPELOYMENTS_CIDR: The CIDR of the subnet where the director deploys instances ($BLITE_BOSH_DEPLOYMENTS_CIDR)"
+      echo "  BLITE_GATEWAY_IP: The gateway for the director's subnet ($BLITE_GATEWAY_IP)"
+      echo "  BLITE_DIRECTOR_IP: The IP of the director ($BLITE_DIRECTOR_IP)"
+      echo "  BLITE_BOSH_EXECUTABLE: The name of the bosh cli binary blite will use ($BLITE_BOSH_EXECUTABLE)"
+      echo
+      echo "create"
+      echo "usage: blite create"
+      echo "Creates a new Bosh Director using the BLITE_* environment variable settings"
+      echo
+      echo "pause"
+      echo "usage: blite pause"
+      echo "Pauses the running blite Bosh director"
+      echo
+      echo "resume"
+      echo "usage: blite resume"
+      echo "Restarts a blite Bosh director that was paused or shut off"
+      echo
+      echo "destroy"
+      echo "Usage: blite destroy"
+      echo "Destroys the blite Bosh director"
+      echo
+      echo "snapshot"
+      echo "usage: blite snapshot [name]"
+      echo "  name - The name of the snapshot, defaults to timestamp"
+      echo "Snapshots a running blite Bosh director"
+      echo
+      echo "snapshots"
+      echo "usage: blite snapshots"
+      echo "Lists available snapshots"
+      echo
+      echo "restore"
+      echo "usage: blite restore snap-name"
+      echo "  snap-name - The name (or UUID) of the snapshot to restore."
+      echo "Restores the blite Bosh director to a previous snapshotted state. Use blite snapshots for a list of "
+      echo "available snapshots."
+      echo
+      echo "config"
+      echo "usage: blite config"
+      echo "Outputs BOSH settings and routes needed to communicate with the running blite Bosh director."
+      echo
+      echo "purge"
+      echo "usage: blite purge"
+      echo "Deletes all blite director data."
+      echo
+      echo "env-eval"
+      echo "usage: eval \$(blite env-eval)"
+      echo "A helper method to seed your environment with Bosh configuration options. Useful when added "
+      echo "to: ~/.bashrc files and such."
+      echo
+      echo "route-add"
+      echo "usage: blite route-add"
+      echo "A helper method that tries to add a route to your routes table so you can access deployed bosh-lite "
+      echo "instances from your host machine. Uses the BLITE_BOSH_DEPLOYMENTS_CIDR and BLITE_DIRECTOR_IP "
+      echo "environment variables."
+      echo
+      echo "route-rm"
+      echo "usage: blite route-rm"
+      echo "A helper method that tries to remove a route from your routes table preventing you from accessing deployed "
+      echo "bosh-lite instances from your host machine. Uses the BLITE_BOSH_DEPLOYMENTS_CIDR and BLITE_DIRECTOR_IP "
+      echo "environment variables."
+      echo
+      echo "update"
+      echo "usage: blite update"
+      echo "Updates the Bosh deployment manifest files used for bosh-lite with the latest available on GitHub."
+      echo
     ;;
 esac
 

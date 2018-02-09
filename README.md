@@ -17,7 +17,7 @@ It is still a work in progress.
  1. Run `blite help` or just `blite` to see available commands and their usage.
  1. Run `blite create` to get the director started
  1. Run `eval (blite env-eval)` to configure your shell to talk to the newly created bosh director.
- 1. Run `blite route-add` to make sure you have a route to communicate with the director and they things it deploys.
+ 1. Run `blite route-add` to make sure you have a route to communicate with the director and the things it deploys.
  
 ## create
 Creates a new local Bosh director. Pass in `BLITE_DIRECTOR_CIDR`, `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP` to set a custom network configuration.

@@ -353,7 +353,7 @@ purge () {
 }
 
 status () {
-  echo "Bosh Director Status:"
+  echo "Blite ID:        $BLITE_ID"
   VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${DIRECTOR_MACHINE_ID}
 }
 
@@ -455,6 +455,10 @@ case $1 in
       echo "resume"
       echo "usage: blite resume"
       echo "Restarts a blite Bosh director that was paused or shut off"
+      echo
+      echo "status"
+      echo "usage: blite status"
+      echo "Outputs information about the blite Bosh director. Like it's name whether or not it's running, paused, etc."
       echo
       echo "destroy"
       echo "Usage: blite destroy"

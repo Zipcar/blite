@@ -5,11 +5,6 @@ to get a functional Bosh director locally using VirtualBox that works with Bosh2
 
 It is still a work in progress.
 
-```
-blite v0.1.0
-Supported commands are: create, destroy, pause, resume, update, purge, route-add, route-delete, env-eval and config
-```
-
 ## Dependencies
   - [bosh2 cli](https://bosh.io/docs/cli-v2.html#install)
   - [VirtualBox](https://virtualbox.org)

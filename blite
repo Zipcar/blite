@@ -100,22 +100,31 @@ print_director_env_config () {
 
 print_env_info () {
   echo
-  echo "Your Bosh Director is now active! You may want to set/update the following environment variables:"
+  echo "*****************************************************************************************************************"
+  echo " Manual Setup "
+  echo "*****************************************************************************************************************"
+  echo "In order for bosh2 to communicate with your new director you'll need to set/update the following environment variables:"
   print_director_env_config
   echo "If you've already got these exported from a previous creation, don't forget to re-source as certs may have been updated!"
-  echo "You can automatically setup your environment with the command:"
-  echo "  eval \$(blite env-eval)"
   echo
-  echo "You probably also want to create a route so you can access your deployments from the host."
-  echo "Depending on your cloud config these values may not be right. This script determines the CIDR of the Bosh Deployments"
-  echo "from the \$BLITE_BOSH_DEPLOYMENTS_CIDR environment variable. Which is currently set to $BLITE_BOSH_DEPLOYMENTS_CIDR"
+  echo "In order to communicate with the instances deployed by your director you'll have to create a route to them from the host."
+  echo "Blite provides this information for convenience, based on the BLITE_BOSH_DEPLOYMENTS_CIDR environment variable."
+  echo "It's possible to configure your bosh director in a way that makes this routing information incorrect."
+  echo
+  echo "The BLITE_BOSH_DEPLOYMENTS_CIDR environment variable is currently set to: $BLITE_BOSH_DEPLOYMENTS_CIDR"
   echo "The command to allow you to access VMS within that CIDR through the Bosh director is:"
   echo "   sudo route add -net $BLITE_BOSH_DEPLOYMENTS_CIDR gw  $BLITE_DIRECTOR_IP #LINUX w/ route command"
   echo "   sudo ip route add   $BLITE_BOSH_DEPLOYMENTS_CIDR via $BLITE_DIRECTOR_IP # Linux (using iproute2 suite)"
   echo "   sudo route add -net $BLITE_BOSH_DEPLOYMENTS_CIDR     $BLITE_DIRECTOR_IP # Mac OS X"
   echo "   route add           $BLITE_BOSH_DEPLOYMENTS_CIDR     $BLITE_DIRECTOR_IP # Windows"
   echo
-  echo "You can automatically set the routes up if the above configuration looks right using:"
+  echo "*****************************************************************************************************************"
+  echo " \"Automatic\" Setup "
+  echo "*****************************************************************************************************************"
+  echo "To setup your environment so bosh2 can communicate with your new director run or add this command to your .bashrc:"
+  echo "  eval \$(blite env-eval)"
+  echo
+  echo "To setup your route table so you can communicate with instances deployed by your director run:"
   echo "  blite route-add"
   echo
 }

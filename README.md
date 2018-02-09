@@ -19,6 +19,7 @@ Supported commands are: create, destroy, pause, resume, update, purge, route-add
 ## Quick Start
  1. Clone this repo or download the raw blite file.
  1. Add blite to your PATH (optional)
+ 1. Run `blite help` or just `blite` to see available commands and their usage.
  1. Run `blite create` to get the director started
  1. Run `eval (blite env-eval)` to configure your shell to talk to the newly created bosh director.
  1. Run `blite route-add` to make sure you have a route to communicate with the director and they things it deploys.

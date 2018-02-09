@@ -490,7 +490,7 @@ case $1 in
       echo "env-eval"
       echo "usage: eval \$(blite env-eval)"
       echo "A helper method to seed your environment with Bosh configuration options. Useful when added "
-      echo "to: ~/.bashrc files and such."
+      echo "to: ~/.bashrc files and such. If not used with and eval call this method will just output text"
       echo
       echo "route-add"
       echo "usage: blite route-add"

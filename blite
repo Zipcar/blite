@@ -239,6 +239,9 @@ fetch_bosh_deployment_files () {
   echo "Fetching jumpbox-user.yml..."
   curl -o ${DEPLOYMENT_FILES}/jumpbox-user.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/jumpbox-user.yml 2>/dev/null
   echo "  Success"
+  echo "Fetching default warden cloud-config.yml"
+  curl -o ${DEPLOYMENT_FILES}/cloud-config.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/warden/cloud-config.yml 2>/dev/null
+  echo "  Success"
 }
 
 deploy_director () {
@@ -299,8 +302,7 @@ create () {
     print_blite_configuration
     echo "Try running blite destroy first."
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-fi
-
+  fi
 }
 
 pause () {
@@ -331,7 +333,7 @@ resume () {
     exit 1
   fi
 
-  director_state=$(VBoxManage list vms -l | grep -e Name -e State | grep -a1 ${DIRECTOR_MACHINE_ID})
+  director_state=$(VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${DIRECTOR_MACHINE_ID})
   echo ${director_state}
 
   if [ ! -z "$(echo ${director_state} | grep paused)" ]; then
@@ -364,6 +366,11 @@ purge () {
 status () {
   echo "Blite ID:        $BLITE_ID"
   VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${DIRECTOR_MACHINE_ID}
+}
+
+update_cloud_config(){
+  echo "Setting default cloud-config based on bosh-lite documentation"
+  bosh update-cloud-config ${DEPLOYMENT_FILES}/cloud-config.yml
 }
 
 snapshot() {
@@ -427,6 +434,10 @@ case $1 in
       route_rm
       exit 0
     ;;
+    cloud-config)
+      update_cloud_config
+      exit 0
+    ;;
     snapshot)
       snapshot $2
     ;;
@@ -472,6 +483,10 @@ case $1 in
       echo "destroy"
       echo "Usage: blite destroy"
       echo "Destroys the blite Bosh director"
+      echo
+      echo "cloud-config"
+      echo "usage: blite cloud-config"
+      echo "Sets the default cloud-config for bosh-lite based on latest recommendation from bosh documentation (warden)."
       echo
       echo "snapshot"
       echo "usage: blite snapshot [name]"

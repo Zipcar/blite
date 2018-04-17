@@ -385,11 +385,12 @@ snapshots() {
 
 restore() {
   if [ -z "$1" ]; then
-    echo "Must pass a snapshot name or UUID to restore. Use blite snapshots to list all available."
+    echo "Must pass a snapshot name to restore. Use blite snapshots to list all available."
     exit 1
   fi
+  snapshot_uuid=$(VBoxManage snapshot ${DIRECTOR_MACHINE_ID} list | grep $1 | awk '{print substr($4, 1, length($4)-1)}')
   VBoxManage controlvm ${DIRECTOR_MACHINE_ID} poweroff
-  VBoxManage snapshot ${DIRECTOR_MACHINE_ID} restore $1
+  VBoxManage snapshot ${DIRECTOR_MACHINE_ID} restore $snapshot_uuid
   VBoxManage startvm ${DIRECTOR_MACHINE_ID} --type headless
 }
 

@@ -57,10 +57,10 @@ if [ ! $(command -v VBoxManage) ]; then
 fi
 
 if [ ! $(command -v ${BLITE_BOSH_EXECUTABLE}) ]; then
-  echo -e "\nBosh2 CLI not found! It must be installed before proceeding: https://bosh.io/docs/cli-v2.html#install"
+  echo -e "\nBosh CLI not found! It must be installed before proceeding: https://bosh.io/docs/cli-v2.html#install"
   exit 1
-elif [ -z "$(${BLITE_BOSH_EXECUTABLE} -v | grep 'version 2.')" ]; then
-  echo -e "\nBosh seems to be installed, but is not the correct version. Version 2 is required https://bosh.io/docs/cli-v2.html#install"
+elif [ -z "$(${BLITE_BOSH_EXECUTABLE} -v | grep 'version')" ]; then
+  echo -e "\nBosh seems to be installed, but is not the correct version. Version 2+ is required https://bosh.io/docs/cli-v2.html#install"
   exit 1
 fi
 

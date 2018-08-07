@@ -270,7 +270,7 @@ deploy_director () {
     fi
   done
 
-  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml "${OPS_FILES[@]}" "${VARS_FILES}" \
+  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml "${OPS_FILES[@]}" "${VARS_FILES[@]}" \
     -o ${DEPLOYMENT_FILES}/cpi.yml \
     -o ${DEPLOYMENT_FILES}/outbound-network.yml \
     -o ${DEPLOYMENT_FILES}/bosh-lite.yml \

@@ -134,6 +134,13 @@ print_route_error() {
   echo "The output of blite config might be helpful. Sorry /shrug"
 }
 
+exists_check(){
+  if [ -z ${DIRECTOR_MACHINE_ID} ]; then
+    echo "No BLite Director found, DIRECTOR_MACHINE_ID environment variable could not be set"
+    exit 1
+  fi
+}
+
 route_add() {
   echo "Adding routes typically requires elevated permissions. You may be prompted for your root password."
   echo "If you'd rather not enter it, run blite config to see the routing commands you can run manually..."
@@ -364,26 +371,31 @@ purge () {
 }
 
 status () {
+  exists_check
   echo "Blite ID:        $BLITE_ID"
   VBoxManage list vms -l | grep -e Name -e State | grep -A1 ${DIRECTOR_MACHINE_ID}
 }
 
 update_cloud_config(){
+  exists_check
   echo "Setting default cloud-config based on bosh-lite documentation"
   bosh update-cloud-config ${DEPLOYMENT_FILES}/cloud-config.yml
 }
 
 snapshot() {
+  exists_check
   timestamp=$(date +%Y-%m-%d-%H-%M-%S)
   snapshot_name=${1:-$timestamp}
   VBoxManage snapshot ${DIRECTOR_MACHINE_ID} take ${snapshot_name} --live
 }
 
 snapshots() {
- VBoxManage snapshot ${DIRECTOR_MACHINE_ID} list
+  exists_check
+  VBoxManage snapshot ${DIRECTOR_MACHINE_ID} list
 }
 
 restore() {
+  exists_check
   if [ -z "$1" ]; then
     echo "Must pass a snapshot name to restore. Use blite snapshots to list all available."
     exit 1

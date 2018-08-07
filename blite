@@ -5,7 +5,7 @@
 # to get a functional Bosh director locally using VirtualBox.
 #
 
-VERSION=v0.1.1
+VERSION=v0.1.2
 
 CONFIG=${HOME}/.config/blite
 MANIFESTS=${CONFIG}/manifests
@@ -29,6 +29,8 @@ mkdir -p ${CREDS_FILES}
 : "${BOSH_DEPLOYMENT_VERSION_HASH:=$(cat ${BOSH_DEPLOYMENT_VERSION_FILE} 2>/dev/null)}"
 : "${BLITE_BOSH_EXECUTABLE:=bosh}"
 : "${BLITE_BOSH_ENVIRONMENT:=vbox}"
+: "${BLITE_OPS_FILE_GLOB:=}"
+
 
 # Identify this Bosh director with a unique id and find all relevant files
 BLITE_ID=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | shasum | awk '{print $1}')
@@ -252,7 +254,15 @@ fetch_bosh_deployment_files () {
 }
 
 deploy_director () {
-  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml \
+
+  # Find operator files
+  for file in ${BLITE_OPS_FILE_GLOB}; do
+    if [ -e ${file} ]; then
+      OPS_FILES+=(-o ${file})
+    fi
+  done
+
+  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml "${OPS_FILES[@]}" \
     -o ${DEPLOYMENT_FILES}/cpi.yml \
     -o ${DEPLOYMENT_FILES}/outbound-network.yml \
     -o ${DEPLOYMENT_FILES}/bosh-lite.yml \
@@ -476,6 +486,7 @@ case $1 in
       echo "  BLITE_GATEWAY_IP: The gateway for the director's subnet ($BLITE_GATEWAY_IP)"
       echo "  BLITE_DIRECTOR_IP: The IP of the director ($BLITE_DIRECTOR_IP)"
       echo "  BLITE_BOSH_EXECUTABLE: The name of the bosh cli binary blite will use ($BLITE_BOSH_EXECUTABLE)"
+      echo "  BLITE_OPS_FILE_GLOB: Optional parameter that allows a user to pass in operator files during director creation. ('')"
       echo
       echo "create"
       echo "usage: blite create"

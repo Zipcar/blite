@@ -34,7 +34,8 @@ It is also possible to manage multiple local Bosh directors with blite by contro
 Creates a new local Bosh director. Pass in `BLITE_DIRECTOR_CIDR`, `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP` to set a custom network configuration.
 Blite creates a unique identifier for your bosh director by hashing together your hostname, and the values of `BLITE_DIRECTOR_CIDR`, 
 `BLITE_DIRECTOR_IP`, `BLITE_GATEWAY_IP`. You can also pass in a `BLITE_OPS_FILE_GLOB` that will append all the files that it matches as operator files 
-at compilation time.
+at compilation time. If you need variables passed in, you can specify the `BLITE_VARS_FILE_GLOB` environment variable that will append all the files that 
+it matches as vars files during compilation.
 
 ## config
 Outputs environment and routing configuration info you might need to set in order to connect to the director and the things it deploys.

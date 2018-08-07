@@ -5,7 +5,7 @@
 # to get a functional Bosh director locally using VirtualBox.
 #
 
-VERSION=v0.1.2
+VERSION=v0.1.3
 
 CONFIG=${HOME}/.config/blite
 MANIFESTS=${CONFIG}/manifests
@@ -30,6 +30,7 @@ mkdir -p ${CREDS_FILES}
 : "${BLITE_BOSH_EXECUTABLE:=bosh}"
 : "${BLITE_BOSH_ENVIRONMENT:=vbox}"
 : "${BLITE_OPS_FILE_GLOB:=}"
+: "${BLITE_VARS_FILE_GLOB:=}"
 
 
 # Identify this Bosh director with a unique id and find all relevant files
@@ -262,7 +263,14 @@ deploy_director () {
     fi
   done
 
-  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml "${OPS_FILES[@]}" \
+  # Find vars files
+  for file in ${BLITE_VARS_FILE_GLOB}; do
+    if [ -e ${file} ]; then
+      VARS_FILES+=(-l ${file})
+    fi
+  done
+
+  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml "${OPS_FILES[@]}" "${VARS_FILES}" \
     -o ${DEPLOYMENT_FILES}/cpi.yml \
     -o ${DEPLOYMENT_FILES}/outbound-network.yml \
     -o ${DEPLOYMENT_FILES}/bosh-lite.yml \
@@ -487,6 +495,7 @@ case $1 in
       echo "  BLITE_DIRECTOR_IP: The IP of the director ($BLITE_DIRECTOR_IP)"
       echo "  BLITE_BOSH_EXECUTABLE: The name of the bosh cli binary blite will use ($BLITE_BOSH_EXECUTABLE)"
       echo "  BLITE_OPS_FILE_GLOB: Optional parameter that allows a user to pass in operator files during director creation. ('')"
+      echo "  BLITE_VARS_FILE_GLOB: Optional parameter that allows a user to pass in vars files during director creation. ('')"
       echo
       echo "create"
       echo "usage: blite create"

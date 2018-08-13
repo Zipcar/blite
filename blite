@@ -270,12 +270,14 @@ deploy_director () {
     fi
   done
 
-  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml "${OPS_FILES[@]}" "${VARS_FILES[@]}" \
+  ${BLITE_BOSH_EXECUTABLE} interpolate ${DEPLOYMENT_FILES}/bosh.yml \
     -o ${DEPLOYMENT_FILES}/cpi.yml \
     -o ${DEPLOYMENT_FILES}/outbound-network.yml \
     -o ${DEPLOYMENT_FILES}/bosh-lite.yml \
     -o ${DEPLOYMENT_FILES}/bosh-lite-runc.yml \
     -o ${DEPLOYMENT_FILES}/jumpbox-user.yml \
+    "${OPS_FILES[@]}" \
+    "${VARS_FILES[@]}" \
     --vars-store ${CREDS_FILE} \
     -v director_name="BLite Bosh Director" \
     -v internal_ip=${BLITE_DIRECTOR_IP} \

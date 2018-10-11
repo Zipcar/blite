@@ -455,6 +455,10 @@ case $1 in
       print_env_info
       exit 0
     ;;
+    networking)
+      print_blite_configuration
+      exit 0
+    ;;
     env-eval)
       print_director_env_config
       exit 0
@@ -492,7 +496,7 @@ case $1 in
       echo
       echo "Available Environment Variables:"
       echo "  BLITE_DIRECTOR_CIDR: The CIDR of the director's subnet ($BLITE_DIRECTOR_CIDR)"
-      echo "  BLITE_BOSH_DPELOYMENTS_CIDR: The CIDR of the subnet where the director deploys instances ($BLITE_BOSH_DEPLOYMENTS_CIDR)"
+      echo "  BLITE_BOSH_DEPLOYMENTS_CIDR: The CIDR of the subnet where the director deploys instances ($BLITE_BOSH_DEPLOYMENTS_CIDR)"
       echo "  BLITE_GATEWAY_IP: The gateway for the director's subnet ($BLITE_GATEWAY_IP)"
       echo "  BLITE_DIRECTOR_IP: The IP of the director ($BLITE_DIRECTOR_IP)"
       echo "  BLITE_BOSH_EXECUTABLE: The name of the bosh cli binary blite will use ($BLITE_BOSH_EXECUTABLE)"
@@ -541,6 +545,10 @@ case $1 in
       echo "config"
       echo "usage: blite config"
       echo "Outputs BOSH settings and routes needed to communicate with the running blite Bosh director."
+      echo
+      echo "networking"
+      echo "usage: blite networking"
+      echo "Outputs blite environment variable settings that control networking (director IP, gateway IP, deployments CIDR, etc)."
       echo
       echo "purge"
       echo "usage: blite purge"

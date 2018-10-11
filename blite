@@ -294,7 +294,7 @@ deploy_director () {
   ${BLITE_BOSH_EXECUTABLE} create-env ${BLITE_MANIFEST} \
     --state ${STATE_FILE}
 
-  ${BLITE_BOSH_EXECUTABLE} alias-env ${BLITE_BOSH_ENVIRONMENT} -e ${BLITE_DIRECTOR_IP} --ca-cert <(${BLITE_BOSH_EXECUTABLE} interpolate ${CREDS_FILE} --path /director_ssl/ca)
+  ${BLITE_BOSH_EXECUTABLE} alias-env ${BLITE_BOSH_ENVIRONMENT} -e https://${BLITE_DIRECTOR_IP} --ca-cert <(${BLITE_BOSH_EXECUTABLE} interpolate ${CREDS_FILE} --path /director_ssl/ca)
 
   print_env_info
 }

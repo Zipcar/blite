@@ -303,6 +303,8 @@ deploy_director () {
   ${BLITE_BOSH_EXECUTABLE} create-env ${BLITE_MANIFEST} \
     --state ${STATE_FILE}
 
+  # ensure nothing else is set in the environment that will cause this to behave unexpectedly
+  eval $(print_director_env_config)
   ${BLITE_BOSH_EXECUTABLE} alias-env ${BLITE_BOSH_ENVIRONMENT} -e https://${BLITE_DIRECTOR_IP} --ca-cert <(${BLITE_BOSH_EXECUTABLE} interpolate ${CREDS_FILE} --path /director_ssl/ca)
 
   print_env_info

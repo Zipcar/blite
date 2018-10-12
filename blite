@@ -414,7 +414,7 @@ update_cloud_config(){
   LOCAL_DNS_LIST=$(cat /etc/resolv.conf | grep nameserver | grep -v "127.*" | awk '{print $2}' | paste -s -d", " -)
 
 
-  if ! -z "${LOCAL_DNS_LIST}"; then
+  if [ ! -z "${LOCAL_DNS_LIST}" ]; then
     CLOUD_CONFIG_DNS="${CLOUD_CONFIG_DNS},${LOCAL_DNS_LIST}"
   fi
   # write out a basic cloud-config that is aware of your existing network settings

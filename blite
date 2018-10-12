@@ -26,12 +26,23 @@ mkdir -p ${CREDS_FILES}
 : "${BLITE_GATEWAY_IP:=192.168.50.1}"
 : "${BLITE_DIRECTOR_IP:=192.168.50.6}"
 : "${BLITE_BOSH_DEPLOYMENTS_CIDR:=10.244.0.0/16}"
+: "${BLITE_BOSH_DEPLOYMENTS_GATEWAY:=10.244.0.1}"
 : "${BOSH_DEPLOYMENT_VERSION_HASH:=$(cat ${BOSH_DEPLOYMENT_VERSION_FILE} 2>/dev/null)}"
 : "${BLITE_BOSH_EXECUTABLE:=bosh}"
 : "${BLITE_BOSH_ENVIRONMENT:=vbox}"
 : "${BLITE_OPS_FILE_GLOB:=}"
 : "${BLITE_VARS_FILE_GLOB:=}"
 
+# If a BOSH_DEPLOYMENT_VERSION_HASH hasn't been set, during create blite will perform an automatic update to latest
+# master of the bosh-deployment repo. Because that repo isn't strictly versioned, master at times is unstable, especially
+# for boshlite. To be non-intrusive set a known working hash here so any first runs (or anytime after running purge) the
+# experience will be stable. Users can still override via env variable or writing a different hash to the version file.
+# An explict blite update command will still fetch latest master
+
+if [ -z "${BOSH_DEPLOYMENT_VERSION_HASH}" ]; then
+  BOSH_DEPLOYMENT_VERSION_HASH="d59edb4d895af0830f0cdee0caf3d7dbbe73b3d9"
+  echo ${BOSH_DEPLOYMENT_VERSION_HASH} > ${BOSH_DEPLOYMENT_VERSION_FILE}
+fi
 
 # Identify this Bosh director with a unique id and find all relevant files
 BLITE_ID=$(echo "$HOSTNAME-$BLITE_DIRECTOR_CIDR-$BLITE_GATEWAY_IP-$BLITE_DIRECTOR_IP" | shasum | awk '{print $1}')
@@ -76,6 +87,7 @@ print_blite_configuration () {
   echo "  BLITE_GATEWAY_IP: $BLITE_GATEWAY_IP"
   echo "  BLITE_DIRECTOR_CIDR: $BLITE_DIRECTOR_CIDR"
   echo "  BLITE_BOSH_DEPLOYMENTS_CIDR: $BLITE_BOSH_DEPLOYMENTS_CIDR"
+  echo "  BLITE_DEPLOYMENTS_GATEWAY: $BLITE_BOSH_DEPLOYMENTS_GATEWAY"
 }
 
 print_good_luck_error () {
@@ -249,9 +261,6 @@ fetch_bosh_deployment_files () {
   echo "Fetching jumpbox-user.yml..."
   curl -o ${DEPLOYMENT_FILES}/jumpbox-user.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/jumpbox-user.yml 2>/dev/null
   echo "  Success"
-  echo "Fetching default warden cloud-config.yml"
-  curl -o ${DEPLOYMENT_FILES}/cloud-config.yml https://raw.githubusercontent.com/cloudfoundry/bosh-deployment/${BOSH_DEPLOYMENT_VERSION_HASH}/warden/cloud-config.yml 2>/dev/null
-  echo "  Success"
 }
 
 deploy_director () {
@@ -398,7 +407,48 @@ status () {
 
 update_cloud_config(){
   exists_check
-  echo "Setting default cloud-config based on bosh-lite documentation"
+  echo "Setting bare bones cloud-config based warden and local network settings, you can override this manually at anytime"
+  CLOUD_CONFIG_DNS=8.8.8.8
+
+  # Get all local DNS servers that are not loopback
+  LOCAL_DNS_LIST=$(cat /etc/resolv.conf | grep nameserver | grep -v "127.*" | awk '{print $2}' | paste -s -d", " -)
+
+
+  if ! -z "${LOCAL_DNS_LIST}"; then
+    CLOUD_CONFIG_DNS="${CLOUD_CONFIG_DNS},${LOCAL_DNS_LIST}"
+  fi
+  # write out a basic cloud-config that is aware of your existing network settings
+  cat >${DEPLOYMENT_FILES}/cloud-config.yml <<EOL
+azs:
+- name: z1
+- name: z2
+- name: z3
+
+vm_types:
+- name: default
+
+disk_types:
+- name: default
+  disk_size: 1024
+
+networks:
+- name: default
+  type: manual
+  subnets:
+  - azs: [z1, z2, z3]
+    dns: [${CLOUD_CONFIG_DNS}]
+    range: ${BLITE_BOSH_DEPLOYMENTS_CIDR}
+    gateway: ${BLITE_BOSH_DEPLOYMENTS_GATEWAY}
+    reserved: []
+
+compilation:
+  workers: 5
+  az: z1
+  reuse_compilation_vms: true
+  vm_type: default
+  network: default
+EOL
+
   bosh update-cloud-config ${DEPLOYMENT_FILES}/cloud-config.yml
 }
 
@@ -497,6 +547,7 @@ case $1 in
       echo "Available Environment Variables:"
       echo "  BLITE_DIRECTOR_CIDR: The CIDR of the director's subnet ($BLITE_DIRECTOR_CIDR)"
       echo "  BLITE_BOSH_DEPLOYMENTS_CIDR: The CIDR of the subnet where the director deploys instances ($BLITE_BOSH_DEPLOYMENTS_CIDR)"
+      echo "  BLITE_BOSH_DEPLOYMENTS_GATEWAY: The gateway address of the subnet where the director deploys instances ($BLITE_BOSH_DEPLOYMENTS_GATEWAY)"
       echo "  BLITE_GATEWAY_IP: The gateway for the director's subnet ($BLITE_GATEWAY_IP)"
       echo "  BLITE_DIRECTOR_IP: The IP of the director ($BLITE_DIRECTOR_IP)"
       echo "  BLITE_BOSH_EXECUTABLE: The name of the bosh cli binary blite will use ($BLITE_BOSH_EXECUTABLE)"
@@ -525,7 +576,7 @@ case $1 in
       echo
       echo "cloud-config"
       echo "usage: blite cloud-config"
-      echo "Sets the default cloud-config for bosh-lite based on latest recommendation from bosh documentation (warden)."
+      echo "Sets a bare bones cloud-config for bosh-lite and warden based on your current network settings."
       echo
       echo "snapshot"
       echo "usage: blite snapshot [name]"

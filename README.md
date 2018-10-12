@@ -19,14 +19,14 @@ It is still a work in progress.
  1. Run `eval (blite env-eval)` to configure your shell to talk to the newly created bosh director.
  1. Run `blite route-add` to make sure you have a route to communicate with the director and the things it deploys.
  1. Optionally, take a base backup `blite snapshot base` so in future you can avoid the time suck of recreation and instead restore the base snapshot.
- 1. Optionally, set the default cloud-config for bosh lite: `blite cloud-config` (pulls from: https://github.com/cloudfoundry/bosh-deployment/blob/master/warden/cloud-config.yml)
+ 1. Optionally, set a bare bones cloud-config for bosh lite: `blite cloud-config`
   
 ## Avoiding Network Issues
 The default blite settings will create a director at `192.168.50.6` in the `192.168.50.0/24` subnet with a gateway 
-at `192.168.50.1`. This director will deploy containers into the `10.244.0.0/16` subnet. This matches the current default
-values used in the `bosh-lite` documentation. If you're running blite in a network environment that conflicts with these 
-IP spaces you'll override the environment variables specified in the create method _before_ running create. You may also 
-consider setting these permanently in `.bashrc`. Doing so will limit the usefulness of shortcut methods like: `blite cloud-config`
+at `192.168.50.1`. This director will deploy containers into the `10.244.0.0/16` subnet using the gateway address `10.244.0.1`. 
+This matches the current default values used in the `bosh-lite` documentation. If you're running blite in a network 
+environment that conflicts with these IP spaces you'll override the environment variables specified in the create method 
+_before_ running create. You may also consider setting these permanently in `.bashrc`.
 
 It is also possible to manage multiple local Bosh directors with blite by controlling these environment variables.
  
@@ -60,6 +60,15 @@ A helper command that will attempt to detect your OS and cleanup your routing ta
 you to connect to the things your director deploys. This function working properly for you is heavily dependent on the 
 cloud config you pass to the director. Make sure the `BLITE_BOSH_DEPLOYMENTS_CIDR` environment variable is set to the 
 actual CIDR of your director's internal network where things are being deployed.
+
+## networking
+An informational method that outputs the current network settings for your bosh director and the containers it's managing.
+
+## cloud-config
+A helper command that uses the networking information set in the environment (see `blite networking`) to write a barebones
+cloud config file that mimics what's available in the bosh-deployment repo. Of course you can just use normal bosh to 
+upload any cloud config you want; this method is just meant to make it a little easier for folks to get up and running
+with something quickly.
 
 ## pause
 Uses VBoxManage to pause the director.

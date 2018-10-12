@@ -325,6 +325,7 @@ update () {
 }
 
 create () {
+  echo "Checking if deployment files have already been downloaded from the bosh-deployment repo, will download if not..."
   if [ -z "$(ls -A ${DEPLOYMENT_FILES})" ]; then
     fetch_bosh_deployment_files
   fi

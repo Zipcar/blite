@@ -414,7 +414,7 @@ update_cloud_config(){
   CLOUD_CONFIG_DNS=8.8.8.8
 
   # Get all local DNS servers that are not loopback
-  LOCAL_DNS_LIST=$(cat /etc/resolv.conf | grep nameserver | grep -v "127.*" | awk '{print $2}' | paste -s -d", " -)
+  LOCAL_DNS_LIST=$(cat /etc/resolv.conf | grep ^nameserver | grep -v "127.*" | awk '{print $2}' | paste -s -d", " -)
 
 
   if [ ! -z "${LOCAL_DNS_LIST}" ]; then

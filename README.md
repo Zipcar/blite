@@ -64,6 +64,10 @@ actual CIDR of your director's internal network where things are being deployed.
 ## networking
 An informational method that outputs the current network settings for your bosh director and the containers it's managing.
 
+## interpolate
+Runs bosh interpolate on the director's compiled manifest. Requires a valid path be passed that will be set to the `--path`
+flag of bosh interpolate: `blite interpolate /name` will return the name of the director.
+
 ## cloud-config
 A helper command that uses the networking information set in the environment (see `blite networking`) to write a barebones
 cloud config file that mimics what's available in the bosh-deployment repo. Of course you can just use normal bosh to 

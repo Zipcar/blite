@@ -225,6 +225,14 @@ route_rm() {
   esac
 }
 
+interpolate_director_path() {
+  if [ -z "$1" ]; then
+    echo "error missing path parameter to pass to bosh interpolate --path; expected usage example: blite interpolate /name"
+    exit 1
+  fi
+  bosh interpolate ${BLITE_MANIFEST} --path=$1
+}
+
 update_bosh_deployment_version () {
   rm -f ${BOSH_DEPLOYMENT_VERSION_FILE}
   echo "Fetching latest version hash for bosh deployment files from github..."
@@ -512,6 +520,10 @@ case $1 in
       print_blite_configuration
       exit 0
     ;;
+    interpolate)
+      interpolate_director_path $2
+      exit 0
+    ;;
     env-eval)
       print_director_env_config
       exit 0
@@ -603,6 +615,10 @@ case $1 in
       echo "networking"
       echo "usage: blite networking"
       echo "Outputs blite environment variable settings that control networking (director IP, gateway IP, deployments CIDR, etc)."
+      echo
+      echo "interpolate"
+      echo "usage: blite interpolate [path]"
+      echo "Runs bosh interpolate on the director's compiled manifest passing the path value directly to the --path flag"
       echo
       echo "purge"
       echo "usage: blite purge"

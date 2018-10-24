@@ -101,7 +101,7 @@ print_no_director_error () {
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "There doesn't seem to be a bosh-lite director with this configuration:"
   print_blite_configuration
-  echo "Try running blite create first. Or maybe don't worry about it and use the one you got."
+  echo "Try running blite create first."
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 }
 
@@ -347,7 +347,7 @@ create () {
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo "There's already a bosh-lite director running with this configuration."
     print_blite_configuration
-    echo "Try running blite destroy first."
+    echo "Try running blite destroy first. Or maybe don't worry about it and use the one you got."
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   fi
 }

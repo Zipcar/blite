@@ -296,7 +296,7 @@ deploy_director () {
     "${OPS_FILES[@]}" \
     "${VARS_FILES[@]}" \
     --vars-store ${CREDS_FILE} \
-    -v director_name="BLite Bosh Director" \
+    -v director_name="BLite" \
     -v internal_ip=${BLITE_DIRECTOR_IP} \
     -v internal_gw=${BLITE_GATEWAY_IP} \
     -v internal_cidr=${BLITE_DIRECTOR_CIDR}\

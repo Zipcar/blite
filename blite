@@ -40,7 +40,7 @@ mkdir -p ${CREDS_FILES}
 # An explict blite update command will still fetch latest master
 
 if [ -z "${BOSH_DEPLOYMENT_VERSION_HASH}" ]; then
-  BOSH_DEPLOYMENT_VERSION_HASH="afbd52c8a8077b8a499d05fe1d9b8812a37220c7"
+  BOSH_DEPLOYMENT_VERSION_HASH="479a725da831580b7762cf0ed258eff459e60eae"
   echo ${BOSH_DEPLOYMENT_VERSION_HASH} > ${BOSH_DEPLOYMENT_VERSION_FILE}
 fi
 
